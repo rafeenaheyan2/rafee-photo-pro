@@ -1,11 +1,25 @@
-<div align="center">
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+# Rafee AI Pro Studio (No-Build Deployment)
 
-  <h1>Built with AI Studio</h2>
+This project is optimized for direct static deployment to **Cloudflare Pages** without requiring a build step or npm.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## How to Deploy
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1.  **Push to GitHub**: Upload this folder directly to a new repository on your GitHub account.
+2.  **Open Cloudflare Dashboard**: Go to **Workers & Pages**.
+3.  **Create a Project**: Click **Create > Pages > Connect to Git**.
+4.  **Select Repository**: Choose your repo.
+5.  **Build Settings**:
+    *   **Framework Preset**: None (Static)
+    *   **Build command**: (Leave empty)
+    *   **Build output directory**: `/` (Root)
+6.  **Environment Variables**:
+    *   Add `API_KEY` with your Google Gemini API Key.
+7.  **Deploy**: Click **Save and Deploy**.
 
-</div>
+The site will be live instantly!
+
+## Technical Notes
+- Uses **Vanilla JS** and **ES Modules**.
+- Uses an **importmap** to handle dependencies in the browser.
+- No bundler needed; pure static hosting.
