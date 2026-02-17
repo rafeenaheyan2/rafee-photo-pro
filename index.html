@@ -127,13 +127,27 @@
   "imports": {
     "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
     "react": "https://esm.sh/react@^19.2.4",
-    "react/": "https://esm.sh/react@^19.2.4/"
+    "react-dom": "https://esm.sh/react-dom@^19.2.4",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.4/client",
+    "htm": "https://esm.sh/htm@^3.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
   }
 }
 </script>
 </head>
 <body class="pro-bg-gradient">
-    <div id="app"></div>
+    <div id="app">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="text-center animate-pulse">
+                <h1 class="text-4xl font-black text-blue-500 mb-4 uppercase tracking-tighter">Website Loaded Successfully</h1>
+                <p class="text-slate-500 text-xs uppercase tracking-[0.5em]">Initializing Neural Engine...</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Polyfill process for browser environment
+        window.process = window.process || { env: {} };
+    </script>
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>

@@ -1,11 +1,13 @@
 
 import React from 'react';
-import { createRoot } from 'https://esm.sh/react-dom@^19.2.4/client';
+import { createRoot } from 'react-dom/client';
+import htm from 'htm';
 import App from './App.tsx';
 
-// Initialize React App in No-Build environment
+const html = htm.bind(React.createElement);
+
 const container = document.getElementById('app');
 if (container) {
   const root = createRoot(container);
-  root.render(React.createElement(App));
+  root.render(html`<${App} />`);
 }
