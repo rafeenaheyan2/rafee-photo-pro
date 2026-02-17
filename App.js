@@ -88,6 +88,7 @@ const App = () => {
     `;
   }
 
+  // --- PRO MODE VIEW ---
   if (isProModeActive) {
     return html`
       <div className="min-h-screen bg-[#020202] text-white p-4 lg:p-10 flex flex-col animate-fade">
@@ -148,6 +149,10 @@ const App = () => {
                       <i className="fa-solid fa-id-card text-xl text-blue-400"></i>
                       <span className="text-[10px] font-black uppercase">AI Passport</span>
                     </button>
+                    <button onClick=${() => handleAction("Enhance quality, sharp 4k details, realistic texture")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group">
+                      <i className="fa-solid fa-wand-magic-sparkles text-xl text-indigo-400"></i>
+                      <span className="text-[10px] font-black uppercase">Ultra Enhance</span>
+                    </button>
                   </div>
 
                   <div className="pt-8 border-t border-white/5 grid grid-cols-2 gap-4">
@@ -180,6 +185,7 @@ const App = () => {
     `;
   }
 
+  // --- NORMAL MODE VIEW ---
   return html`
     <div className="min-h-screen p-6 md:p-16 flex flex-col items-center max-w-7xl mx-auto transition-all">
       <input type="file" ref=${fileInputRef} className="hidden" onChange=${handleFileUpload} accept="image/*" />
@@ -195,7 +201,10 @@ const App = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick=${handleSupportClick} className="flex items-center gap-3 px-8 py-6 rounded-3xl font-black text-[11px] uppercase transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 group">
+          <button 
+            onClick=${handleSupportClick} 
+            className="flex items-center gap-3 px-8 py-6 rounded-3xl font-black text-[11px] uppercase transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 group"
+          >
             <i className="fa-solid fa-headset text-blue-500 group-hover:scale-110 transition-transform"></i> Support
           </button>
           <button onClick=${startProModeTransition} className="flex items-center gap-6 px-12 py-6 rounded-3xl font-black text-[11px] uppercase transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 group">
@@ -212,6 +221,7 @@ const App = () => {
                   <i className="fa-solid fa-cloud-arrow-up text-blue-500 text-4xl"></i>
                 </div>
                 <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Upload Photo</h2>
+                <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest">JPG, PNG OR WEBP</p>
             </div>
           ` : html`
             <div className="glass-panel p-10 rounded-[55px] space-y-10 shadow-2xl animate-fade">
@@ -277,6 +287,10 @@ const App = () => {
           `}
         </div>
       </div>
+      
+      <footer className="mt-24 text-center">
+        <p className="text-[10px] font-black text-slate-800 tracking-[1.5em] uppercase opacity-50">RAFEE PHOTO AI • POWERED BY GEMINI 2.5 FLASH</p>
+      </footer>
     </div>
   `;
 };
