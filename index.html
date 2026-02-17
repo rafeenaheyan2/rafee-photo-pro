@@ -138,16 +138,15 @@
 <body class="pro-bg-gradient">
     <div id="app">
         <div class="flex items-center justify-center min-h-screen">
-            <div class="text-center animate-pulse">
-                <h1 class="text-4xl font-black text-blue-500 mb-4 uppercase tracking-tighter">Website Loaded Successfully</h1>
-                <p class="text-slate-500 text-xs uppercase tracking-[0.5em]">Initializing Neural Engine...</p>
+            <div class="text-center">
+                <h1 class="text-4xl font-black text-blue-500 mb-4 uppercase tracking-tighter">Website Loaded</h1>
+                <p class="text-slate-500 text-xs uppercase tracking-[0.5em] animate-pulse">Initializing Neural Engine...</p>
             </div>
         </div>
     </div>
     <script>
-        // Polyfill process for browser environment
-        window.process = window.process || { env: {} };
+        window.process = { env: {} };
     </script>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="./index.js"></script>
 </body>
 </html>
