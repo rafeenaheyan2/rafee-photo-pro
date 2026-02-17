@@ -36,15 +36,16 @@ const App = () => {
   };
 
   const handleReselectClick = () => fileInputRef.current?.click();
-  const handleReset = () => state.original && setState(prev => ({ ...prev, edited: prev.original }));
+  const handleReset = () => state.original && setState(prev => ({ ...prev, edited: prev.original, error: null }));
 
   const handleAction = async (prompt) => {
     if (!state.original) return;
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     try {
       const result = await editImageWithGemini(state.edited || state.original, prompt);
-      setState(prev => ({ ...prev, edited: result, isProcessing: false }));
+      setState(prev => ({ ...prev, edited: result, isProcessing: false, error: null }));
     } catch (err) {
+      console.error("Editing error:", err);
       setState(prev => ({ ...prev, isProcessing: false, error: err.message }));
     }
   };
@@ -62,13 +63,14 @@ const App = () => {
   };
 
   const Loader = ({ label = "Processing" }) => html`
-    <div className="flex-1 flex flex-col items-center justify-center animate-fade">
+    <div className="flex-1 flex flex-col items-center justify-center animate-fade p-10 text-center relative z-20">
       <div className="relative w-44 h-44 mb-12 flex items-center justify-center">
         <div className="absolute inset-0 processing-ring rounded-full scale-110 opacity-30"></div>
         <div className="absolute inset-0 processing-ring rounded-full"></div>
         <img src=${LOADING_IMAGE_URL} className="w-32 h-32 rounded-full object-cover relative z-10 rf-glow shadow-[0_0_50px_rgba(59,130,246,0.3)]" />
       </div>
       <h3 className="text-2xl font-black text-white uppercase tracking-[0.4em] mb-2">${label}</h3>
+      <p className="text-slate-500 text-[10px] uppercase tracking-widest mb-6">Neural networks are synthesizing your request...</p>
       <div className="flex gap-1">
         <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
         <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -77,13 +79,23 @@ const App = () => {
     </div>
   `;
 
+  const ErrorDisplay = () => state.error && html`
+    <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-3 animate-fade shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+      <i className="fa-solid fa-circle-exclamation text-lg"></i>
+      <div className="flex-1">
+        <p className="text-[10px] font-black uppercase tracking-wider">System Error</p>
+        <p className="text-xs opacity-80">${state.error}</p>
+      </div>
+      <button onClick=${() => setState(p => ({...p, error: null}))} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+        <i className="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  `;
+
   if (isGalaxyTransitioning) {
     return html`
-      <div className="galaxy-container">
-        <div className="starfield"></div>
-        <div className="relative z-[10000] scale-125">
-           <${Loader} label="Pro Studio" />
-        </div>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
+         <${Loader} label="Pro Studio" />
       </div>
     `;
   }
@@ -91,7 +103,7 @@ const App = () => {
   // --- PRO MODE VIEW ---
   if (isProModeActive) {
     return html`
-      <div className="min-h-screen bg-[#020202] text-white p-4 lg:p-10 flex flex-col animate-fade">
+      <div className="min-h-screen text-white p-4 lg:p-10 flex flex-col animate-fade relative z-10">
          <input type="file" ref=${fileInputRef} className="hidden" onChange=${handleFileUpload} accept="image/*" />
          
          <nav className="flex flex-wrap justify-between items-center mb-10 glass-panel p-6 rounded-[35px] gap-4">
@@ -125,6 +137,7 @@ const App = () => {
          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10">
             <aside className="lg:col-span-3 space-y-8">
                <div className="glass-panel p-8 rounded-[45px] space-y-8 border-white/5 shadow-2xl">
+                  <${ErrorDisplay} />
                   <div>
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 px-1">Neural Terminal</p>
                     <textarea 
@@ -145,11 +158,11 @@ const App = () => {
 
                   <div className="pt-8 border-t border-white/5 space-y-4">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Pro Core Actions</p>
-                    <button onClick=${() => handleAction("Professional Passport photo with light blue background, formal clothing, high quality")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group">
+                    <button onClick=${() => handleAction("Professional Passport photo with light blue background, formal clothing, high quality")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group disabled:opacity-50" disabled=${state.isProcessing}>
                       <i className="fa-solid fa-id-card text-xl text-blue-400"></i>
                       <span className="text-[10px] font-black uppercase">AI Passport</span>
                     </button>
-                    <button onClick=${() => handleAction("Enhance quality, sharp 4k details, realistic texture")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group">
+                    <button onClick=${() => handleAction("Enhance quality, sharp 4k details, realistic texture")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group disabled:opacity-50" disabled=${state.isProcessing}>
                       <i className="fa-solid fa-wand-magic-sparkles text-xl text-indigo-400"></i>
                       <span className="text-[10px] font-black uppercase">Ultra Enhance</span>
                     </button>
@@ -187,7 +200,7 @@ const App = () => {
 
   // --- NORMAL MODE VIEW ---
   return html`
-    <div className="min-h-screen p-6 md:p-16 flex flex-col items-center max-w-7xl mx-auto transition-all">
+    <div className="min-h-screen p-6 md:p-16 flex flex-col items-center max-w-7xl mx-auto transition-all relative z-10">
       <input type="file" ref=${fileInputRef} className="hidden" onChange=${handleFileUpload} accept="image/*" />
       
       <header className="w-full flex flex-col md:flex-row justify-between items-center mb-16 gap-10 glass-panel p-12 rounded-[55px] animate-fade">
@@ -215,6 +228,7 @@ const App = () => {
 
       <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-4 space-y-8">
+          <${ErrorDisplay} />
           ${!state.original ? html`
             <div className="glass-panel p-28 rounded-[65px] border-dashed border-2 border-white/10 flex flex-col items-center justify-center hover:border-blue-500 transition-all cursor-pointer group" onClick=${handleReselectClick}>
                 <div className="w-24 h-24 glossy-secondary rounded-[35px] flex items-center justify-center mb-12 group-hover:scale-110">
@@ -243,7 +257,7 @@ const App = () => {
                   </div>
                   <div className="grid grid-cols-3 gap-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
                     ${CLOTHING_OPTIONS.filter(opt => opt.gender === activeGenderTab).map((opt) => html`
-                      <button key=${opt.id} onClick=${() => handleAction(opt.prompt)} className="group relative aspect-square rounded-[22px] overflow-hidden border border-white/5 hover:border-blue-500 transition-all">
+                      <button key=${opt.id} onClick=${() => handleAction(opt.prompt)} className="group relative aspect-square rounded-[22px] overflow-hidden border border-white/5 hover:border-blue-500 transition-all disabled:opacity-50" disabled=${state.isProcessing}>
                         <img src=${opt.thumbnail} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700 group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent flex items-end p-3">
                           <span className="text-[8px] font-black text-white uppercase truncate">${opt.name}</span>
@@ -289,7 +303,7 @@ const App = () => {
       </div>
       
       <footer className="mt-24 text-center">
-        <p className="text-[10px] font-black text-slate-800 tracking-[1.5em] uppercase opacity-50">RAFEE PHOTO AI • POWERED BY GEMINI 2.5 FLASH</p>
+        <p className="text-[10px] font-black text-slate-400 tracking-[1.5em] uppercase opacity-50">RAFEE PHOTO AI • POWERED BY GEMINI 2.5 FLASH</p>
       </footer>
     </div>
   `;
