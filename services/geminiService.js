@@ -1,14 +1,41 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-export const editImageWithGemini = async (base64Image, instruction) => {
-  // Ensure we have an API key
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "undefined") {
-    throw new Error("API Key পাওয়া যায়নি। দয়া করে আপনার Cloudflare Pages সেটিংস চেক করুন।");
+/**
+ * Internal helper to call the generation models.
+ */
+async function generate(ai, modelName, imagePart, textPart) {
+  const config = {
+    imageConfig: {
+      aspectRatio: "1:1",
+      imageSize: modelName.includes("pro") ? "1K" : undefined
+    }
+  };
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: { parts: [imagePart, textPart] },
+    config: modelName.includes("pro") ? config : undefined
+  });
+
+  if (!response.candidates || response.candidates.length === 0) {
+    throw new Error("AI generation was blocked by safety filters.");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const candidate = response.candidates[0];
+  for (const part of candidate.content.parts) {
+    if (part.inlineData) {
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Edits an image using Gemini models with an automatic fallback for permission issues.
+ */
+export const editImageWithGemini = async (base64Image, instruction) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const base64Data = base64Image.split(',')[1];
   const mimeType = base64Image.split(';')[0].split(':')[1] || 'image/png';
@@ -21,44 +48,38 @@ export const editImageWithGemini = async (base64Image, instruction) => {
   };
 
   const textPart = {
-    text: `TASK: PROFESSIONAL IMAGE EDITING. 
-    Preserve identity 100%. 
-    Instructions: ${instruction}. 
-    Output must be a high-quality modified version of the provided person.`
+    text: `TASK: PROFESSIONAL HIGH-END IMAGE MODIFICATION.
+    CRITICAL RULES:
+    1. IDENTITY PRESERVATION: Keep the person's facial features and eyes 100% unchanged.
+    2. REQUEST: ${instruction}.
+    3. OUTPUT: High-resolution photographic image.`
   };
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: { parts: [imagePart, textPart] },
-    });
+    // Attempt with High-Quality Pro model first
+    console.log("Attempting generation with gemini-3-pro-image-preview...");
+    const result = await generate(ai, 'gemini-3-pro-image-preview', imagePart, textPart);
+    if (result) return result;
+    throw new Error("No image data returned from Pro model.");
+  } catch (error) {
+    const errString = JSON.stringify(error).toLowerCase();
+    const isPermissionError = errString.includes("403") || errString.includes("permission_denied") || errString.includes("not have permission");
 
-    if (!response || !response.candidates || response.candidates.length === 0) {
-      throw new Error("AI থেকে কোনো রেসপন্স পাওয়া যায়নি। সম্ভবত সেফটি ফিল্টারের কারণে ব্লক হয়েছে।");
-    }
-
-    const candidate = response.candidates[0];
-    
-    // Look for image data in parts
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      } else if (part.text) {
-        // If AI only returned text, it might be a refusal or explanation
-        console.warn("AI returned text instead of image:", part.text);
-        throw new Error("AI ছবি তৈরি করতে ব্যর্থ হয়েছে। মেসেজ: " + part.text.substring(0, 100));
+    if (isPermissionError) {
+      console.warn("Pro model access denied. Falling back to gemini-2.5-flash-image...");
+      try {
+        // Fallback to Flash model which is usually available on free/standard tiers
+        const result = await generate(ai, 'gemini-2.5-flash-image', imagePart, textPart);
+        if (result) return result;
+        throw new Error("No image data returned from Flash model.");
+      } catch (fallbackError) {
+        console.error("Fallback model also failed:", fallbackError);
+        throw new Error("Both Pro and Flash models failed. Please check your API key permissions and billing status at ai.google.dev/gemini-api/docs/billing");
       }
     }
-    
-    throw new Error("AI ইমেজ ডেটা পাঠাতে পারেনি। অনুগ্রহ করে অন্য কোনো ছবি দিয়ে চেষ্টা করুন।");
-  } catch (error) {
-    console.error("Gemini Image API Error:", error);
-    if (error.message?.includes("403")) {
-      throw new Error("API Key পারমিশন এরর। আপনার কী-টি সঠিক কিনা তা যাচাই করুন।");
-    }
-    if (error.message?.includes("429")) {
-      throw new Error("বেশিবার রিকোয়েস্ট পাঠানো হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।");
-    }
-    throw new Error(error.message || "এডিটিং ব্যর্থ হয়েছে। পুনরায় চেষ্টা করুন।");
+
+    // If it wasn't a permission error, rethrow it
+    console.error("Gemini API Error:", error);
+    throw error;
   }
 };

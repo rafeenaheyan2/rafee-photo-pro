@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import htm from 'htm';
 import { LOADING_IMAGE_URL, CLOTHING_OPTIONS } from './constants.js';
 import { GlossyButton } from './components/GlossyButton.js';
@@ -8,6 +8,7 @@ import { editImageWithGemini } from './services/geminiService.js';
 const html = htm.bind(React.createElement);
 
 const App = () => {
+  const [hasKey, setHasKey] = useState(true);
   const [state, setState] = useState({
     original: null,
     edited: null,
@@ -21,6 +22,32 @@ const App = () => {
   const [customPrompt, setCustomPrompt] = useState('');
   
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio) {
+        try {
+          const keySelected = await window.aistudio.hasSelectedApiKey();
+          setHasKey(keySelected);
+        } catch (e) {
+          console.error("Error checking key:", e);
+        }
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleSelectKey = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        setHasKey(true); 
+        setState(prev => ({ ...prev, error: null }));
+      } catch (e) {
+        console.error("Error opening key selector:", e);
+      }
+    }
+  };
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
@@ -45,8 +72,15 @@ const App = () => {
       const result = await editImageWithGemini(state.edited || state.original, prompt);
       setState(prev => ({ ...prev, edited: result, isProcessing: false, error: null }));
     } catch (err) {
-      console.error("Editing error:", err);
-      setState(prev => ({ ...prev, isProcessing: false, error: err.message }));
+      console.error("Editing error details:", err);
+      const errMsg = err.message || "An unexpected error occurred.";
+      
+      const errLower = errMsg.toLowerCase();
+      if (errLower.includes("check your api key") || errLower.includes("not found")) {
+        setHasKey(false);
+      } else {
+        setState(prev => ({ ...prev, isProcessing: false, error: errMsg }));
+      }
     }
   };
 
@@ -79,18 +113,29 @@ const App = () => {
     </div>
   `;
 
-  const ErrorDisplay = () => state.error && html`
-    <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-3 animate-fade shadow-[0_0_20px_rgba(239,68,68,0.1)]">
-      <i className="fa-solid fa-circle-exclamation text-lg"></i>
-      <div className="flex-1">
-        <p className="text-[10px] font-black uppercase tracking-wider">System Error</p>
-        <p className="text-xs opacity-80">${state.error}</p>
+  if (!hasKey) {
+    return html`
+      <div className="min-h-screen flex items-center justify-center p-6 text-center animate-fade relative z-10">
+        <div className="glass-panel p-12 rounded-[50px] max-w-md border-white/10 shadow-2xl">
+          <div className="w-20 h-20 glossy-primary rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-[0_0_40px_rgba(59,130,246,0.6)]">
+            <i className="fa-solid fa-key text-white text-3xl"></i>
+          </div>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-4">Activation Required</h2>
+          <p className="text-slate-400 text-xs mb-8 leading-relaxed">
+            To use the full potential of Rafee AI Studio, please connect an API key.
+            <br/><br/>
+            <span className="text-blue-400 font-bold uppercase tracking-widest text-[9px]">Note: High-quality models require a paid Google Cloud project. If yours is free, we will automatically use high-performance Lite models.</span>
+          </p>
+          <${GlossyButton} onClick=${handleSelectKey} className="w-full py-5">
+            Connect Engine Key
+          <//>
+          <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block mt-6 text-[10px] text-blue-500/50 uppercase font-black hover:text-blue-500 transition-all">
+            Billing & Documentation
+          </a>
+        </div>
       </div>
-      <button onClick=${() => setState(p => ({...p, error: null}))} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-        <i className="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-  `;
+    `;
+  }
 
   if (isGalaxyTransitioning) {
     return html`
@@ -100,7 +145,6 @@ const App = () => {
     `;
   }
 
-  // --- PRO MODE VIEW ---
   if (isProModeActive) {
     return html`
       <div className="min-h-screen text-white p-4 lg:p-10 flex flex-col animate-fade relative z-10">
@@ -113,18 +157,14 @@ const App = () => {
               </button>
               <div>
                 <h2 className="text-xl font-black tracking-tighter uppercase leading-none">PRO <span className="text-blue-500">STUDIO</span></h2>
-                <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-[0.4em]">Neural Static V2.5</span>
+                <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-[0.4em]">Neural Engine V3.1</span>
               </div>
             </div>
             <div className="flex gap-3 flex-wrap items-center">
-              <button 
-                onClick=${handleSupportClick} 
-                className="w-12 h-12 rounded-2xl glossy-secondary flex items-center justify-center text-blue-400 hover:text-blue-300 transition-colors"
-                title="Support"
-              >
-                <i className="fa-solid fa-headset text-lg"></i>
+              <button onClick=${handleSupportClick} className="w-12 h-12 rounded-2xl glossy-secondary flex items-center justify-center text-blue-400 hover:text-blue-300">
+                <i className="fa-solid fa-headset"></i>
               </button>
-              <${GlossyButton} onClick=${handleReselectClick} variant="secondary" className="px-6 py-3 lowercase tracking-normal font-medium normal-case">Reselect Photo<//>
+              <${GlossyButton} onClick=${handleReselectClick} variant="secondary" className="px-6 py-3 normal-case font-medium">Reselect Photo<//>
               ${state.original && html`
                 <${GlossyButton} onClick=${() => {
                   const link = document.createElement('a');
@@ -137,7 +177,11 @@ const App = () => {
          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10">
             <aside className="lg:col-span-3 space-y-8">
                <div className="glass-panel p-8 rounded-[45px] space-y-8 border-white/5 shadow-2xl">
-                  <${ErrorDisplay} />
+                  ${state.error && html`
+                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-tight mb-2 animate-pulse">
+                       <i className="fa-solid fa-triangle-exclamation mr-2"></i> ${state.error}
+                    </div>
+                  `}
                   <div>
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 px-1">Neural Terminal</p>
                     <textarea 
@@ -165,6 +209,10 @@ const App = () => {
                     <button onClick=${() => handleAction("Enhance quality, sharp 4k details, realistic texture")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group disabled:opacity-50" disabled=${state.isProcessing}>
                       <i className="fa-solid fa-wand-magic-sparkles text-xl text-indigo-400"></i>
                       <span className="text-[10px] font-black uppercase">Ultra Enhance</span>
+                    </button>
+                    <button onClick=${() => handleAction("Significantly increase color saturation, make colors punchy and vibrant while maintaining realistic skin tones")} className="w-full p-5 rounded-3xl glossy-secondary flex items-center gap-4 group disabled:opacity-50" disabled=${state.isProcessing}>
+                      <i className="fa-solid fa-palette text-xl text-orange-400"></i>
+                      <span className="text-[10px] font-black uppercase">Color Boost</span>
                     </button>
                   </div>
 
@@ -198,7 +246,6 @@ const App = () => {
     `;
   }
 
-  // --- NORMAL MODE VIEW ---
   return html`
     <div className="min-h-screen p-6 md:p-16 flex flex-col items-center max-w-7xl mx-auto transition-all relative z-10">
       <input type="file" ref=${fileInputRef} className="hidden" onChange=${handleFileUpload} accept="image/*" />
@@ -214,11 +261,8 @@ const App = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button 
-            onClick=${handleSupportClick} 
-            className="flex items-center gap-3 px-8 py-6 rounded-3xl font-black text-[11px] uppercase transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 group"
-          >
-            <i className="fa-solid fa-headset text-blue-500 group-hover:scale-110 transition-transform"></i> Support
+          <button onClick=${handleSupportClick} className="flex items-center gap-3 px-8 py-6 rounded-3xl font-black text-[11px] uppercase transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 group">
+             <i className="fa-solid fa-headset text-blue-500"></i> Support
           </button>
           <button onClick=${startProModeTransition} className="flex items-center gap-6 px-12 py-6 rounded-3xl font-black text-[11px] uppercase transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 group">
             <i className="fa-solid fa-shuttle-space group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform text-blue-500"></i> Open Pro Studio
@@ -228,7 +272,11 @@ const App = () => {
 
       <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-4 space-y-8">
-          <${ErrorDisplay} />
+          ${state.error && html`
+            <div className="p-5 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold text-center animate-fade">
+              ${state.error}
+            </div>
+          `}
           ${!state.original ? html`
             <div className="glass-panel p-28 rounded-[65px] border-dashed border-2 border-white/10 flex flex-col items-center justify-center hover:border-blue-500 transition-all cursor-pointer group" onClick=${handleReselectClick}>
                 <div className="w-24 h-24 glossy-secondary rounded-[35px] flex items-center justify-center mb-12 group-hover:scale-110">
@@ -242,71 +290,4 @@ const App = () => {
                 <div>
                   <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest mb-6 px-1">Quick Actions</p>
                   <div className="grid grid-cols-1 gap-4">
-                    <${GlossyButton} onClick=${() => handleAction("Remove background perfectly and replace with clean white")} isLoading=${state.isProcessing} variant="secondary" className="w-full py-5">Clean Background<//>
-                    <${GlossyButton} onClick=${() => handleAction("Professional Passport photo, light blue background, formal attire")} isLoading=${state.isProcessing} className="w-full py-5">Auto Passport<//>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-6 px-1">
-                    <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Wardrobe</p>
-                    <div className="flex glossy-secondary rounded-xl p-1.5">
-                      <button onClick=${() => setActiveGenderTab('male')} className=${`px-4 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${activeGenderTab === 'male' ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500'}`}>Male</button>
-                      <button onClick=${() => setActiveGenderTab('female')} className=${`px-4 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${activeGenderTab === 'female' ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500'}`}>Female</button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-                    ${CLOTHING_OPTIONS.filter(opt => opt.gender === activeGenderTab).map((opt) => html`
-                      <button key=${opt.id} onClick=${() => handleAction(opt.prompt)} className="group relative aspect-square rounded-[22px] overflow-hidden border border-white/5 hover:border-blue-500 transition-all disabled:opacity-50" disabled=${state.isProcessing}>
-                        <img src=${opt.thumbnail} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700 group-hover:scale-110" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent flex items-end p-3">
-                          <span className="text-[8px] font-black text-white uppercase truncate">${opt.name}</span>
-                        </div>
-                      </button>
-                    `)}
-                  </div>
-                </div>
-
-                <div className="flex gap-4 pt-10 border-t border-white/5">
-                   <button onClick=${handleReset} className="flex-1 py-5 rounded-3xl bg-white/5 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all">Reset</button>
-                   <button onClick=${handleReselectClick} className="flex-1 py-5 rounded-3xl bg-blue-600/10 text-[10px] font-black uppercase text-blue-500 hover:bg-blue-600/20 transition-all">Reselect</button>
-                </div>
-            </div>
-          `}
-        </div>
-
-        <div className="lg:col-span-8">
-          ${state.original && html`
-            <div className="glass-panel rounded-[80px] p-2 overflow-hidden min-h-[550px] flex flex-col shadow-2xl relative">
-              ${state.isProcessing ? html`
-                <${Loader} label="Rendering" />
-              ` : html`
-                <div className="flex-1 flex flex-col p-12 md:p-16 animate-fade">
-                  <div className="flex justify-between items-center mb-12">
-                     <div className="flex items-center gap-4 px-6 py-3 bg-white/5 rounded-full border border-white/10 shadow-inner">
-                       <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
-                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Engine Live</span>
-                     </div>
-                     <${GlossyButton} onClick=${() => {
-                        const link = document.createElement('a');
-                        link.href = state.edited || ''; link.download = `rafee-ai-${Date.now()}.png`; link.click();
-                     }} className="px-16 py-4 rounded-[20px]">Save Photo<//>
-                  </div>
-                  <div className="flex-1 flex justify-center items-center">
-                    <img src=${state.edited || ''} className="max-w-full max-h-[60vh] rounded-[55px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] image-glow border border-white/10" alt="Result" />
-                  </div>
-                </div>
-              `}
-            </div>
-          `}
-        </div>
-      </div>
-      
-      <footer className="mt-24 text-center">
-        <p className="text-[10px] font-black text-slate-400 tracking-[1.5em] uppercase opacity-50">RAFEE PHOTO AI • POWERED BY GEMINI 2.5 FLASH</p>
-      </footer>
-    </div>
-  `;
-};
-
-export default App;
+                    <${GlossyButton
